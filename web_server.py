@@ -39,8 +39,6 @@ def format_data() -> str:
 
 def post(start_response, post_body: str) -> bytes:
 
-    print(post_body)
-
     titlecut_text = ''
     titlecut_subjects = []
 
@@ -53,12 +51,16 @@ def post(start_response, post_body: str) -> bytes:
         elif response_name == 'titlecut_text':
             titlecut_text = response_value
 
-    image = create_titlecut(target_text=titlecut_text, dictionaries=titlecut_subjects)
-    image_bytes = io.BytesIO()
-    image.save(image_bytes, format='png')
-    image_byte_array = image_bytes.getvalue()
+    try:
+        image = create_titlecut(target_text=titlecut_text, dictionaries=titlecut_subjects)
+        image_bytes = io.BytesIO()
+        image.save(image_bytes, format='png')
+        image_byte_array = image_bytes.getvalue()
 
-    data = image_byte_array
-    start_response('200 OK', [('Content-Type', 'image/png'), ('Content-Length', str(len(data)))])
+        data = image_byte_array
+        start_response('200 OK', [('Content-Type', 'image/png'), ('Content-Length', str(len(data)))])
+    except TitlecutException as e:
+        error_message = 'ERROR:\n' + str(e) + '\n\nPlease go back and try again with a different set of source images or text.'
+        data = error_message.encode('utf-8')
+        start_response('500 Server Error', [('Content-Type', 'text/plain'), ('Content-Length', str(len(data)))])
     return data
-

@@ -16,14 +16,39 @@
                 newInput.type = "checkbox";
                 newInput.name = "titlecut_subjects";
                 newInput.value = curSubjectName;
+                newInput.onclick = () => toggleCheckboxGroupRequired("titlecut_subjects");
+                newInput.required = true;
                 subjectInputs.appendChild(newInput);
 
                 var newLabel = document.createElement("label");
                 newLabel.innerText = curSubjectName;
-                newLabel.for = "subject-checkbox-" + curSubjectName;
+                newLabel.setAttribute("for", "subject-checkbox-" + curSubjectName);
                 subjectInputs.appendChild(newLabel);
+
+                subjectInputs.appendChild(document.createElement("br"));
             }
         };
+
+        function toggleCheckboxGroupRequired(checkboxesName) {
+            var checkboxes = document.getElementsByName(checkboxesName);
+
+            var atLeastOneChecked = false;
+            for (i = 0; i < checkboxes.length; i++) {
+                if (checkboxes[i].checked === true) {
+                    atLeastOneChecked = true;
+                }
+            }
+
+            if (atLeastOneChecked === true) {
+                for (i = 0; i < checkboxes.length; i++) {
+                    el[i].required = false;
+                }
+            } else {
+                for (i = 0; i < checkboxes.length; i++) {
+                    el[i].required = true;
+                }
+            }
+        }
     </script>
 </head>
 

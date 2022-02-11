@@ -11,8 +11,6 @@ def create_titlecut(target_text: str, dictionaries: dict[str]) -> Image.Image:
 
     combined_dictionary, space_width = load_dictionaries(dictionaries)
 
-    print(space_width)
-
     output_image_height = 50
     output_image = Image.new(mode='RGB', size=(1, output_image_height), color='white')
 
@@ -33,6 +31,9 @@ def create_titlecut(target_text: str, dictionaries: dict[str]) -> Image.Image:
             word_length = len(cur_word)
             cur_letter_index = 0
             for cur_letter in cur_word:
+                if not cur_letter in combined_dictionary['letters']:
+                    raise TitlecutException('The letter "' + cur_letter + '" could not be found in the images selected')
+
                 chosen_letter_instance = random.choice(combined_dictionary['letters'][cur_letter])
                 chosen_letter_instance_source_image = Image.open('image_sources/'+ chosen_letter_instance['subject_name'] + '/' + chosen_letter_instance['image_name'])
 
@@ -103,6 +104,9 @@ def load_dictionaries(dictionary_names: list[str]) -> tuple[dict, int]:
                     num_of_letter_widths += 1
 
     return (combined_dictionary, sum_of_letter_widths // num_of_letter_widths)
+
+class TitlecutException(Exception):
+    pass
 
 
 if __name__ == '__main__':

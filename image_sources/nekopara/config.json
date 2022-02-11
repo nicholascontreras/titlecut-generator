@@ -1,0 +1,6 @@
+{
+    "invert": true,
+    "threshold": 50,
+    "word_confidence": 50,
+    "letter_confidence": 99.5
+}

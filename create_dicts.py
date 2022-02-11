@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 
 import PIL
@@ -9,10 +10,19 @@ pytesseract.pytesseract.tesseract_cmd = 'C:/Program Files/Tesseract-OCR/tesserac
 
 def main():
 
-    subject_folders = os.listdir('image_sources')
-    print(subject_folders)
+    if len(sys.argv) == 1:
+        save_preprocessed = False
+        subject_folders = os.listdir('image_sources')
+    else:
+        save_preprocessed = True
+        subject_folders = sys.argv[1:]
 
     for cur_subject_folder in subject_folders:
+
+        print('Creating dictionary for subject: ' + cur_subject_folder)
+
+        if not os.path.exists('image_sources/' + cur_subject_folder + '/preprocessed'):
+            os.mkdir('image_sources/' + cur_subject_folder + '/preprocessed')
 
         config_settings = get_config_for_subject(cur_subject_folder)
         dictionary_data = {'words': {}, 'letters': {}}
@@ -21,7 +31,7 @@ def main():
         
         for cur_file in files:
             if cur_file.lower().endswith(('.png', '.jpg', 'jpeg')):
-                add_image_to_dictionary(dictionary_data, cur_subject_folder, cur_file, config_settings)
+                add_image_to_dictionary(dictionary_data, cur_subject_folder, cur_file, config_settings, save_preprocessed)
 
         with open('image_sources/' + cur_subject_folder + '/dictionary.json', 'w') as dictionary_file:
             json.dump(dictionary_data, dictionary_file)
@@ -30,9 +40,10 @@ def get_config_for_subject(subject_name: str) -> dict:
     with open('image_sources/' + subject_name + '/config.json') as config_file:
         return json.load(config_file)
 
-def add_image_to_dictionary(dictionary_data: dict, subject_name: str, image_name: str, config_settings: dict) -> None:
+def add_image_to_dictionary(dictionary_data: dict, subject_name: str, image_name: str, config_settings: dict, save_preprocessed: bool) -> None:
     image = Image.open('image_sources/' + subject_name + '/' + image_name)
     image = preprocess_image(image=image, invert=config_settings['invert'], threshold=config_settings['threshold'])
+    image.save('image_sources/' + subject_name + '/preprocessed/' + image_name)
 
     words_ocr_results = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT)
     add_words_to_dictionary(dictionary_data=dictionary_data, ocr_results=words_ocr_results, image_name=image_name, min_confidence=config_settings['word_confidence'])
