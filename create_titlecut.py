@@ -1,7 +1,11 @@
+import os
 import json
 import random
 
 from PIL import Image
+
+def get_subjects() -> list[str]:
+    return os.listdir('image_sources')
 
 def create_titlecut(target_text: str, dictionaries: dict[str]) -> Image.Image:
 

@@ -1,11 +1,46 @@
 <!DOCTYPE html>
 <html>
 
-<head></head>
+<head>
+    <title>Why the fuck did I make this</title>
+    <script>
+        //DATA//
+
+        window.onload = () => {
+            var subjectInputs = document.getElementById("subject-inputs");
+
+            for (var i = 0; i < SUBJECTS.length; i++) {
+                var curSubjectName = SUBJECTS[i];
+                var newInput = document.createElement("input");
+                newInput.id = "subject-checkbox-" + curSubjectName;
+                newInput.type = "checkbox";
+                newInput.name = "titlecut_subjects";
+                newInput.value = curSubjectName;
+                subjectInputs.appendChild(newInput);
+
+                var newLabel = document.createElement("label");
+                newLabel.innerText = curSubjectName;
+                newLabel.for = "subject-checkbox-" + curSubjectName;
+                subjectInputs.appendChild(newLabel);
+            }
+        };
+    </script>
+</head>
 
 <body>
-    <h1>Custom HTML</h1>
-    <p>{{DATA}}</p>
+    <h1>Titlecut Generator</h1>
+    <hr>
+    <br>
+    <form method="post">
+        <h3>Select Image Sources</h3>
+        <div id="subject-inputs">
+
+        </div>
+        <h3>Titlecut Text</h3>
+        <textarea rows="10" cols="50" name="titlecut_text"></textarea>
+        <br>
+        <button role="submit">Generate</button>
+    </form>
 </body>
 
 </html>
