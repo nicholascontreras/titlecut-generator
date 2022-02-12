@@ -4,6 +4,7 @@ import json
 
 import PIL
 from PIL import Image
+from PIL import ImageFilter
 import pytesseract
 
 pytesseract.pytesseract.tesseract_cmd = 'C:/Program Files/Tesseract-OCR/tesseract.exe'
@@ -36,19 +37,42 @@ def main():
         with open('image_sources/' + cur_subject_folder + '/dictionary.json', 'w') as dictionary_file:
             json.dump(dictionary_data, dictionary_file)
 
+        dictionary_size_words = 0
+        for word_instance_list in dictionary_data['words'].values():
+            dictionary_size_words += len(word_instance_list)
+
+        dictionary_size_letters = 0
+        for letter_instance_list in dictionary_data['letters'].values():
+            dictionary_size_letters += len(letter_instance_list)
+
+        print('Dictionary size - words: ' + str(dictionary_size_words) + ' letters: ' + str(dictionary_size_letters))
+
 def get_config_for_subject(subject_name: str) -> dict:
+    DEFAULT_CONFIG = {
+        'word_erode_count': 0,
+        'letter_erode_count': 0,
+        'erode_scaleback_factor': 1,
+    }
+
     with open('image_sources/' + subject_name + '/config.json') as config_file:
-        return json.load(config_file)
+        for key, value in json.load(config_file).items():
+            DEFAULT_CONFIG[key] = value
+
+        return DEFAULT_CONFIG
 
 def add_image_to_dictionary(dictionary_data: dict, subject_name: str, image_name: str, config_settings: dict, save_preprocessed: bool) -> None:
     image = Image.open('image_sources/' + subject_name + '/' + image_name)
     image = preprocess_image(image=image, invert=config_settings['invert'], threshold=config_settings['threshold'])
-    image.save('image_sources/' + subject_name + '/preprocessed/' + image_name)
+    image = erode_image(image, erode_count=config_settings['word_erode_count'], scaleback_factor=config_settings['erode_scaleback_factor'])
+
+    if save_preprocessed:
+        image.save('image_sources/' + subject_name + '/preprocessed/' + image_name)
 
     words_ocr_results = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT)
     add_words_to_dictionary(dictionary_data=dictionary_data, ocr_results=words_ocr_results, image_name=image_name, min_confidence=config_settings['word_confidence'])
 
-    letters_ocr_results = pytesseract.image_to_pdf_or_hocr(image, config='-c hocr_char_boxes=1', extension='hocr').decode("utf-8") 
+    image = erode_image(image, erode_count=config_settings['letter_erode_count'], scaleback_factor=config_settings['erode_scaleback_factor'])
+    letters_ocr_results = pytesseract.image_to_pdf_or_hocr(image, config='-c hocr_char_boxes=1', extension='hocr').decode("utf-8")
     add_letters_to_dictionary(dictionary_data=dictionary_data, ocr_results=letters_ocr_results, image_name=image_name, min_confidence=config_settings['letter_confidence'])
 
 
@@ -73,7 +97,6 @@ def add_words_to_dictionary(dictionary_data: dict, ocr_results: dict, image_name
                 dictionary_data['words'][text].append({'image_name': image_name, 'left': left, 'top': top, 'width': width, 'height': height})
 
 def add_letters_to_dictionary(dictionary_data: dict, ocr_results: str, image_name: str, min_confidence: float) -> None:             
-
     while True:
         next_letter_index = ocr_results.find('<span class=\'ocrx_cinfo\'')
         if next_letter_index == -1:
@@ -98,11 +121,23 @@ def add_letters_to_dictionary(dictionary_data: dict, ocr_results: str, image_nam
         ocr_results = ocr_results[ocr_results.index('>') + 1:]
         letter = ocr_results[:ocr_results.index('<')]
 
-        if confidence > min_confidence:
-            if not letter in dictionary_data['letters']:
-                dictionary_data['letters'][letter] = []
+        if bottom - top > right - left:
+            if confidence > min_confidence:
+                if not letter in dictionary_data['letters']:
+                    dictionary_data['letters'][letter] = []
 
-            dictionary_data['letters'][letter].append({'image_name': image_name, 'left': left, 'top': top, 'right': right, 'bottom': bottom})
+                dictionary_data['letters'][letter].append({'image_name': image_name, 'left': left, 'top': top, 'right': right, 'bottom': bottom})
+
+def erode_image(image: Image.Image, erode_count: int, scaleback_factor: int) -> Image.Image:
+    orig_size = image.size
+    image = image.resize((image.width * scaleback_factor, image.height * scaleback_factor))
+
+    for _ in range(erode_count):
+        image = image.filter(ImageFilter.MaxFilter(3))
+
+    image = image.resize(orig_size)
+
+    return image
 
 def preprocess_image(image: Image.Image, invert: bool, threshold: int) -> Image.Image:
     image = image.convert('L')

@@ -7,12 +7,19 @@ from PIL import Image
 def get_subjects() -> list[str]:
     return os.listdir('image_sources')
 
-def create_titlecut(target_text: str, dictionaries: dict[str]) -> Image.Image:
+def create_titlecut(target_text: str, dictionaries: dict[str], ignore_case: bool) -> Image.Image:
 
     combined_dictionary, space_width = load_dictionaries(dictionaries)
 
-    output_image_height = 50
-    output_image = Image.new(mode='RGB', size=(1, output_image_height), color='white')
+    if ignore_case:
+        combined_dictionary = dictionary_lowercase(combined_dictionary)
+        target_text = target_text.lower()
+
+    output_image_row_height = 50
+    output_image = Image.new(mode='RGB', size=(1, output_image_row_height), color='white')
+
+    cur_x_pos = 0
+    cur_y_pos = 0
 
     for cur_word in target_text.split():
         if cur_word in combined_dictionary['words']:
@@ -23,9 +30,13 @@ def create_titlecut(target_text: str, dictionaries: dict[str]) -> Image.Image:
             # Cut the word out of the source image
             chosen_word_instance_image = image_subsection(chosen_word_instance_source_image, chosen_word_instance['left'], chosen_word_instance['top'], chosen_word_instance['width'], chosen_word_instance['height'])
             # Scale the word image to fit our output image
-            chosen_word_instance_image = scale_image_to_height(image=chosen_word_instance_image, height=output_image_height)
+            chosen_word_instance_image = scale_image_to_height(image=chosen_word_instance_image, height=output_image_row_height)
             # Append the word to the output image
-            output_image = append_image(base_image=output_image, image_to_append=chosen_word_instance_image, spacing_after=space_width)
+            output_image, cur_x_pos, cur_y_pos = append_image(base_image=output_image, image_to_append=chosen_word_instance_image, append_x=cur_x_pos, append_y=cur_y_pos,  spacing_after=space_width)
+        
+            if cur_x_pos > 2000:
+                cur_x_pos = 0
+                cur_y_pos += output_image_row_height
         else:
             # Word doesn't exist, use letters to form word!
             word_length = len(cur_word)
@@ -43,12 +54,17 @@ def create_titlecut(target_text: str, dictionaries: dict[str]) -> Image.Image:
                 # Cut the letter out of the source image
                 chosen_letter_instance_image = image_subsection(chosen_letter_instance_source_image, chosen_letter_instance['left'], chosen_letter_instance['top'], chosen_letter_instance_width, chosen_letter_instance_height)
                 # Scale the letter image to fit our output image
-                chosen_letter_instance_image = scale_image_to_height(image=chosen_letter_instance_image, height=output_image_height)
+                chosen_letter_instance_image = scale_image_to_height(image=chosen_letter_instance_image, height=output_image_row_height)
                 # Append the letter to the output image
                 if cur_letter_index == word_length - 1:
-                    output_image = append_image(base_image=output_image, image_to_append=chosen_letter_instance_image, spacing_after=space_width)
+                    output_image, cur_x_pos, cur_y_pos = append_image(base_image=output_image, image_to_append=chosen_letter_instance_image, append_x=cur_x_pos, append_y=cur_y_pos, spacing_after=space_width)
+                
+                    if cur_x_pos > 2000:
+                        cur_x_pos = 0
+                        cur_y_pos += output_image_row_height
+
                 else:
-                    output_image = append_image(base_image=output_image, image_to_append=chosen_letter_instance_image, spacing_after=1)
+                    output_image, cur_x_pos, cur_y_pos = append_image(base_image=output_image, image_to_append=chosen_letter_instance_image, append_x=cur_x_pos, append_y=cur_y_pos, spacing_after=1)
 
                 cur_letter_index += 1
 
@@ -68,11 +84,12 @@ def scale_image_to_height(image: Image.Image, height: int) -> Image.Image:
     scaled_height = int(image.height * scale_factor)
     return image.resize(size=(scaled_width, scaled_height))
 
-def append_image(base_image: Image.Image, image_to_append: Image.Image, spacing_after: int = 0) -> Image.Image:
-    new_image = Image.new(mode='RGB', size=(base_image.width + image_to_append.width + spacing_after, base_image.height), color='white')
+def append_image(base_image: Image.Image, image_to_append: Image.Image, append_x: int, append_y: int, spacing_after: int = 0) -> tuple[Image.Image, int, int]:
+    new_image = Image.new(mode='RGB', size=(max(append_x + image_to_append.width + spacing_after, base_image.width), append_y + image_to_append.height), color='white')
     new_image.paste(base_image, box=(0, 0))
-    new_image.paste(image_to_append, box=(base_image.width, 0))
-    return new_image
+    new_image.paste(image_to_append, box=(append_x, append_y))
+
+    return (new_image, append_x + image_to_append.width + spacing_after, append_y)
 
 def load_dictionaries(dictionary_names: list[str]) -> tuple[dict, int]:
 
@@ -104,6 +121,17 @@ def load_dictionaries(dictionary_names: list[str]) -> tuple[dict, int]:
                     num_of_letter_widths += 1
 
     return (combined_dictionary, sum_of_letter_widths // num_of_letter_widths)
+
+def dictionary_lowercase(dictionary: dict) -> dict:
+    lowercase_dictionary = {'words': {}, 'letters': {}}
+
+    for cur_word in dictionary['words']:
+        lowercase_dictionary['words'][cur_word.lower()] = dictionary['words'][cur_word]
+
+    for cur_letter in dictionary['letters']:
+        lowercase_dictionary['letters'][cur_letter.lower()] = dictionary['letters'][cur_letter]
+
+    return lowercase_dictionary
 
 class TitlecutException(Exception):
     pass

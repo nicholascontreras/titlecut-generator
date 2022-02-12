@@ -2,5 +2,8 @@
     "invert": true,
     "threshold": 200,
     "word_confidence": 50,
-    "letter_confidence": 99.5
+    "letter_confidence": 99.5,
+    "word_erode_count": 1,
+    "letter_erode_count": 1,
+    "erode_scaleback_factor": 2
 }

@@ -41,6 +41,7 @@ def post(start_response, post_body: str) -> bytes:
 
     titlecut_text = ''
     titlecut_subjects = []
+    titlecut_ignore_case = False
 
     for cur_form_response in post_body.split('&'):
         response_name, response_value = tuple(cur_form_response.split('='))
@@ -50,9 +51,11 @@ def post(start_response, post_body: str) -> bytes:
             titlecut_subjects.append(response_value)
         elif response_name == 'titlecut_text':
             titlecut_text = response_value
+        elif response_name == 'titlecut_ignore_case':
+            titlecut_ignore_case = True
 
     try:
-        image = create_titlecut(target_text=titlecut_text, dictionaries=titlecut_subjects)
+        image = create_titlecut(target_text=titlecut_text, dictionaries=titlecut_subjects, ignore_case=titlecut_ignore_case)
         image_bytes = io.BytesIO()
         image.save(image_bytes, format='png')
         image_byte_array = image_bytes.getvalue()
