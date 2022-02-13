@@ -75,7 +75,7 @@ def image_subsection(image: Image.Image, left: int, top: int, width: int, height
     top -= int(height * padding_percent)
     right = int(left + width + (width * padding_percent * 2))
     bottom = int(top + height + (height * padding_percent * 2))
-    return image.crop(box=(left, top, right, bottom))
+    return image.crop(box=(max(left, 0), max(top, 0), min(right, image.width), min(bottom, image.height)))
 
 
 def scale_image_to_height(image: Image.Image, height: int) -> Image.Image:

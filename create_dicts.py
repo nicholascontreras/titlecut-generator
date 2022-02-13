@@ -5,6 +5,7 @@ import json
 import PIL
 from PIL import Image
 from PIL import ImageFilter
+from PIL import ImageFont
 import pytesseract
 
 pytesseract.pytesseract.tesseract_cmd = 'C:/Program Files/Tesseract-OCR/tesseract.exe'
@@ -52,6 +53,7 @@ def get_config_for_subject(subject_name: str) -> dict:
         'word_erode_count': 0,
         'letter_erode_count': 0,
         'erode_scaleback_factor': 1,
+        'aspect_ratio_scale': 1
     }
 
     with open('image_sources/' + subject_name + '/config.json') as config_file:
@@ -73,7 +75,7 @@ def add_image_to_dictionary(dictionary_data: dict, subject_name: str, image_name
 
     image = erode_image(image, erode_count=config_settings['letter_erode_count'], scaleback_factor=config_settings['erode_scaleback_factor'])
     letters_ocr_results = pytesseract.image_to_pdf_or_hocr(image, config='-c hocr_char_boxes=1', extension='hocr').decode("utf-8")
-    add_letters_to_dictionary(dictionary_data=dictionary_data, ocr_results=letters_ocr_results, image_name=image_name, min_confidence=config_settings['letter_confidence'])
+    add_letters_to_dictionary(dictionary_data=dictionary_data, ocr_results=letters_ocr_results, image_name=image_name, min_confidence=config_settings['letter_confidence'], aspect_ratio_scale=config_settings['aspect_ratio_scale'])
 
 
 def add_words_to_dictionary(dictionary_data: dict, ocr_results: dict, image_name: str, min_confidence: float) -> None:
@@ -96,7 +98,10 @@ def add_words_to_dictionary(dictionary_data: dict, ocr_results: dict, image_name
 
                 dictionary_data['words'][text].append({'image_name': image_name, 'left': left, 'top': top, 'width': width, 'height': height})
 
-def add_letters_to_dictionary(dictionary_data: dict, ocr_results: str, image_name: str, min_confidence: float) -> None:             
+def add_letters_to_dictionary(dictionary_data: dict, ocr_results: str, image_name: str, min_confidence: float, aspect_ratio_scale: float) -> None:             
+    
+    font = ImageFont.load_default()
+    
     while True:
         next_letter_index = ocr_results.find('<span class=\'ocrx_cinfo\'')
         if next_letter_index == -1:
@@ -112,21 +117,29 @@ def add_letters_to_dictionary(dictionary_data: dict, ocr_results: str, image_nam
         right = int(bounding_box_as_strings[2])
         bottom = int(bounding_box_as_strings[3])
 
-        ocr_results = ocr_results[ocr_results.index('x_conf'):]
-        ocr_results = ocr_results[ocr_results.index(' '):]
+        width = right - left
+        height = bottom - top
 
-        confidence_as_string = ocr_results[:ocr_results.index('\'')].strip()
-        confidence = float(confidence_as_string)
+        if width > 0 and height > 0:
+            ocr_results = ocr_results[ocr_results.index('x_conf'):]
+            ocr_results = ocr_results[ocr_results.index(' '):]
 
-        ocr_results = ocr_results[ocr_results.index('>') + 1:]
-        letter = ocr_results[:ocr_results.index('<')]
+            confidence_as_string = ocr_results[:ocr_results.index('\'')].strip()
+            confidence = float(confidence_as_string)
 
-        if bottom - top > right - left:
             if confidence > min_confidence:
-                if not letter in dictionary_data['letters']:
-                    dictionary_data['letters'][letter] = []
+                ocr_results = ocr_results[ocr_results.index('>') + 1:]
+                letter = ocr_results[:ocr_results.index('<')]
 
-                dictionary_data['letters'][letter].append({'image_name': image_name, 'left': left, 'top': top, 'right': right, 'bottom': bottom})
+                expected_width, expected_height = font.getsize(letter)
+                expected_ratio = expected_width / expected_height
+                actual_ratio = width / height
+
+                if abs(expected_ratio - (actual_ratio / aspect_ratio_scale)) / expected_ratio < 0.25:
+                    if not letter in dictionary_data['letters']:
+                        dictionary_data['letters'][letter] = []
+
+                    dictionary_data['letters'][letter].append({'image_name': image_name, 'left': left, 'top': top, 'right': right, 'bottom': bottom})
 
 def erode_image(image: Image.Image, erode_count: int, scaleback_factor: int) -> Image.Image:
     orig_size = image.size
